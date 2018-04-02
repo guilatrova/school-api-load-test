@@ -77,7 +77,7 @@ class MyTaskSet(TaskSet):
         self.client.post("/quizzes/", json={ 'school_class': self.school_class, 'questions': questions })
 
     @task
-    def assign_quiz_to_student(self):
+    def assign_quiz_to_student(self): #verify if needed
         self.client.post("/students/{}/assignments/".format(self.waiting_assignment), json={ 'quiz': self.quiz, 'enrollment': self.waiting_assignment_enrollment })
 
     @task 
@@ -95,24 +95,20 @@ class MyTaskSet(TaskSet):
 
     @task
     def check_classes(self):
-        pass
+        self.client.get("/students/{}/classes/".format(self.student))
 
     @task
     def check_assignments(self):
-        pass
+        self.client.get("/students/{}/assignments/".format(self.student))
 
     @task
     def enroll_in_class(self):
-        self.client.post("/students/{}/classes/".format(self.new_comer), json={ 'school_class': self.school_class, 'semester': '2018-01-01' })
-
-    @task
-    def submits_answer(self):
-        pass
+        data = { 'student': self.new_comer, 'school_class': self.school_class, 'semester': '2018-01-01' }
+        self.client.post("/students/{}/classes/".format(self.new_comer), json=data)
 
     @task
     def check_assignment_result(self):
-        pass
-    
+        self.client.get("/assignments/{}/".format(str(self.assignment)))
 
 class MyLocust(HttpLocust):
     host = os.getenv('TARGET_URL', "http://localhost:8000")
