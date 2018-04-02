@@ -38,18 +38,20 @@ def create_answers(*args):
 class MyTaskSet(TaskSet):
     def post_json_get_id(self, url, payload):
         response = self.client.post(url, json=payload)
-        time.sleep(0.2) #Required to avoid connection error
+        time.sleep(0.1) #Required to avoid connection error
         return response.json()['id']
 
     def setup_people(self):        
         self.student = self.post_json_get_id("/students/", { 'name': 'Guilherme' })
-        self.teacher = self.post_json_get_id("/teachers/", { 'name': 'Kwan' })
+        self.new_comer = self.post_json_get_id("/students/", { 'name': 'Bill Gates' })
+        self.waiting_assignment = self.post_json_get_id("/students/", { 'name': 'Steve Wozniak' })
 
-        self.new_comer = self.post_json_get_id("/students/", { 'name': 'Jhonny' })
+        self.teacher = self.post_json_get_id("/teachers/", { 'name': 'Kwan' })
 
     def setup_classes(self):
         self.school_class = self.post_json_get_id("/classes/", { 'name': 'Load Testing', 'teacher': self.teacher })
         self.student_enrollment = self.post_json_get_id("/students/{}/classes/".format(self.student), { 'student': self.student, 'school_class': self.school_class, 'semester': '2018-01-01' })
+        self.waiting_assignment_enrollment = self.post_json_get_id("/students/{}/classes/".format(self.student), { 'student': self.waiting_assignment, 'school_class': self.school_class, 'semester': '2018-01-01' })
 
     def setup_quizzes_and_assignments(self):
         self.quiz = self.post_json_get_id("/quizzes/", { 'school_class': self.school_class, 'questions': create_questions(10) })
@@ -59,6 +61,7 @@ class MyTaskSet(TaskSet):
         self.setup_people()
         self.setup_classes()
         self.setup_quizzes_and_assignments()
+        print('SETUP FINISHED')
 
     @task
     def create_teacher(self):
@@ -73,9 +76,9 @@ class MyTaskSet(TaskSet):
         questions = create_questions(5)
         self.client.post("/quizzes/", json={ 'school_class': self.school_class, 'questions': questions })
 
-    # @task
-    # def assign_quiz_to_student(self):
-    #     self.client.post("/assignments/", json={ 'quiz': self.quiz, 'enrollment': self.student_enrollment })
+    @task
+    def assign_quiz_to_student(self):
+        self.client.post("/students/{}/assignments/".format(self.waiting_assignment), json={ 'quiz': self.quiz, 'enrollment': self.waiting_assignment_enrollment })
 
     @task 
     def check_assignment_status(self):
