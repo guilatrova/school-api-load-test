@@ -38,7 +38,7 @@ def create_answers(*args):
 class MyTaskSet(TaskSet):
     def post_json_get_id(self, url, payload):
         response = self.client.post(url, json=payload)
-        time.sleep(0.5)
+        time.sleep(0.2) #Required to avoid connection error
         return response.json()['id']
 
     def setup_people(self):        
@@ -49,11 +49,14 @@ class MyTaskSet(TaskSet):
         self.school_class = self.post_json_get_id("/classes/", { 'name': 'Load Testing', 'teacher': self.teacher })
         self.student_enrollment = self.post_json_get_id("/students/{}/classes/".format(self.student), { 'student': self.student, 'school_class': self.school_class, 'semester': '2018-01-01' })
 
+    def setup_quizzes_and_assignments(self):
+        self.quiz = self.post_json_get_id("/quizzes/", { 'school_class': self.school_class, 'questions': create_questions(10) })
+        self.assignment = self.post_json_get_id("/students/{}/assignments/".format(self.student), { 'quiz': self.quiz, 'enrollment': self.student_enrollment })
+
     def on_start(self):
         self.setup_people()
         self.setup_classes()
-        self.quiz = self.post_json_get_id("/quizzes/", { 'school_class': self.school_class, 'questions': create_questions(10) })
-        self.assignment = self.post_json_get_id("/students/{}/assignments/".format(self.student), { 'quiz': self.quiz, 'enrollment': self.student_enrollment })
+        self.setup_quizzes_and_assignments()
 
     @task
     def create_teacher(self):
@@ -68,17 +71,17 @@ class MyTaskSet(TaskSet):
         questions = create_questions(5)
         self.client.post("/quizzes/", json={ 'school_class': self.school_class, 'questions': questions })
 
-    @task
-    def assign_quiz_to_student(self):
-        self.client.post("/assignments/", json={ 'quiz': self.quiz, 'enrollment': self.student_enrollment })
+    # @task
+    # def assign_quiz_to_student(self):
+    #     self.client.post("/assignments/", json={ 'quiz': self.quiz, 'enrollment': self.student_enrollment })
 
     @task 
     def check_assignment_status(self):
-        self.client.get("/assignments/" + self.assignment)
+        self.client.get("/assignments/{}".format(str(self.assignment)))
 
     @task
-    def check_students_grades(self):
-        self.client.get("/assignments/reports/student-grades/")
+    def check_students_grades(self):        
+        self.client.get("/assignments/reports/student-grades/?teacher={}&semester=2018-01-01".format(self.teacher))
         
     #Student
     @task
@@ -93,9 +96,9 @@ class MyTaskSet(TaskSet):
     def check_assignments(self):
         pass
 
-    @task
-    def enroll_in_class(self):
-        self.client.post("/students/{}/classes/".format(self.student), json={ 'school_class': self.school_class, 'semester': '2018-01-01' })
+    # @task
+    # def enroll_in_class(self):
+    #     self.client.post("/students/{}/classes/".format(self.student), json={ 'school_class': self.school_class, 'semester': '2018-01-01' })
 
     @task
     def submits_answer(self):
