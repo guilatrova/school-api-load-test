@@ -1,14 +1,3 @@
-# Copyright 2015-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file
-# except in compliance with the License. A copy of the License is located at
-#
-#     http://aws.amazon.com/apache2.0/
-#
-# or in the "license" file accompanying this file. This file is distributed on an "AS IS"
-# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations under the License.
-
 import os
 import time
 import string
@@ -35,7 +24,7 @@ def create_answers(*args):
 
     return lst
 
-class MyTaskSet(TaskSet):
+class OnStartSetupDataMixin:
     def post_json_get_id(self, url, payload):
         response = self.client.post(url, json=payload)
         time.sleep(0.1) #Required to avoid connection error
@@ -61,8 +50,8 @@ class MyTaskSet(TaskSet):
         self.setup_people()
         self.setup_classes()
         self.setup_quizzes_and_assignments()
-        print('SETUP FINISHED')
 
+class TeacherTaskSet(OnStartSetupDataMixin, TaskSet):
     @task
     def create_teacher(self):
         self.client.post("/teachers/", json={ 'name': 'Mary' })
@@ -77,7 +66,7 @@ class MyTaskSet(TaskSet):
         self.client.post("/quizzes/", json={ 'school_class': self.school_class, 'questions': questions })
 
     @task
-    def assign_quiz_to_student(self): #verify if needed
+    def assign_quiz_to_student(self):
         self.client.post("/students/{}/assignments/".format(self.waiting_assignment), json={ 'quiz': self.quiz, 'enrollment': self.waiting_assignment_enrollment })
 
     @task 
@@ -86,9 +75,9 @@ class MyTaskSet(TaskSet):
 
     @task
     def check_students_grades(self):        
-        self.client.get("/assignments/reports/student-grades/?teacher={}&semester=2018-01-01".format(self.teacher))
-        
-    #Student
+        self.client.get("/assignments/reports/student-grades/?teacher={}&semester=2018-01-01".format(self.teacher))        
+
+class StudentTaskSet(OnStartSetupDataMixin, TaskSet):
     @task
     def create_student(self):
         self.client.post("/students/", json={ 'name': 'Jhon' })
@@ -110,8 +99,14 @@ class MyTaskSet(TaskSet):
     def check_assignment_result(self):
         self.client.get("/assignments/{}/".format(str(self.assignment)))
 
-class MyLocust(HttpLocust):
+class StudentUser(HttpLocust):
     host = os.getenv('TARGET_URL', "http://localhost:8000")
-    task_set = MyTaskSet
+    task_set = StudentTaskSet
+    min_wait = 1000
+    max_wait = 10000
+
+class TeacherUser(HttpLocust):
+    host = os.getenv('TARGET_URL', "http://localhost:8000")
+    task_set = TeacherTaskSet
     min_wait = 1000
     max_wait = 10000
