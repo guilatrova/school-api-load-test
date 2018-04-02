@@ -10,28 +10,104 @@
 # License for the specific language governing permissions and limitations under the License.
 
 import os
+import time
 import string
 import random
 from locust import HttpLocust, TaskSet, task
 
+def create_questions(how_many):
+    answers = create_answers('A', 'B', 'C', 'D')
+    return [create_question(answers) for x in range(how_many)]
+
+def create_question(answers):
+    return {
+        'description': 'question',
+        'correct_answer': 1,
+        'answers': answers
+    }
+
+def create_answers(*args):
+    lst = []
+    for i in range(len(args)):
+        description = args[i]
+        choice = i + 1
+        lst.append({ 'choice': choice, 'description': description })
+
+    return lst
+
 class MyTaskSet(TaskSet):
-    @task(1000)
-    def index(self):
-        response = self.client.get("/")
+    def post_json_get_id(self, url, payload):
+        response = self.client.post(url, json=payload)
+        time.sleep(0.5)
+        return response.json()['id']
 
-    # This task will 15 times for every 1000 runs of the above task
-    # @task(15)
-    # def about(self):
-    #     self.client.get("/blog")
+    def setup_people(self):        
+        self.student = self.post_json_get_id("/students/", { 'name': 'Guilherme' })
+        self.teacher = self.post_json_get_id("/teachers/", { 'name': 'Kwan' })
 
-    # This task will run once for every 1000 runs of the above task
-    # @task(1)
-    # def about(self):
-    #     id = id_generator()
-    #     self.client.post("/signup", {"email": "example@example.com", "name": "Test"})
+    def setup_classes(self):
+        self.school_class = self.post_json_get_id("/classes/", { 'name': 'Load Testing', 'teacher': self.teacher })
+        self.student_enrollment = self.post_json_get_id("/students/{}/classes/".format(self.student), { 'student': self.student, 'school_class': self.school_class, 'semester': '2018-01-01' })
+
+    def on_start(self):
+        self.setup_people()
+        self.setup_classes()
+        self.quiz = self.post_json_get_id("/quizzes/", { 'school_class': self.school_class, 'questions': create_questions(10) })
+        self.assignment = self.post_json_get_id("/students/{}/assignments/".format(self.student), { 'quiz': self.quiz, 'enrollment': self.student_enrollment })
+
+    @task
+    def create_teacher(self):
+        self.client.post("/teachers/", json={ 'name': 'Mary' })
+
+    @task
+    def create_class(self):
+        self.client.post("/classes/", json={ 'name': 'Managing Great Companies', 'teacher': self.teacher })    
+
+    @task
+    def create_quiz(self):
+        questions = create_questions(5)
+        self.client.post("/quizzes/", json={ 'school_class': self.school_class, 'questions': questions })
+
+    @task
+    def assign_quiz_to_student(self):
+        self.client.post("/assignments/", json={ 'quiz': self.quiz, 'enrollment': self.student_enrollment })
+
+    @task 
+    def check_assignment_status(self):
+        self.client.get("/assignments/" + self.assignment)
+
+    @task
+    def check_students_grades(self):
+        self.client.get("/assignments/reports/student-grades/")
+        
+    #Student
+    @task
+    def create_student(self):
+        self.client.post("/students/", json={ 'name': 'Jhon' })
+
+    @task
+    def check_classes(self):
+        pass
+
+    @task
+    def check_assignments(self):
+        pass
+
+    @task
+    def enroll_in_class(self):
+        self.client.post("/students/{}/classes/".format(self.student), json={ 'school_class': self.school_class, 'semester': '2018-01-01' })
+
+    @task
+    def submits_answer(self):
+        pass
+
+    @task
+    def check_assignment_result(self):
+        pass
+    
 
 class MyLocust(HttpLocust):
-    host = os.getenv('TARGET_URL', "http://localhost")
+    host = os.getenv('TARGET_URL', "http://localhost:8000")
     task_set = MyTaskSet
-    min_wait = 45
-    max_wait = 50
+    min_wait = 1000
+    max_wait = 10000
