@@ -45,6 +45,8 @@ class MyTaskSet(TaskSet):
         self.student = self.post_json_get_id("/students/", { 'name': 'Guilherme' })
         self.teacher = self.post_json_get_id("/teachers/", { 'name': 'Kwan' })
 
+        self.new_comer = self.post_json_get_id("/students/", { 'name': 'Jhonny' })
+
     def setup_classes(self):
         self.school_class = self.post_json_get_id("/classes/", { 'name': 'Load Testing', 'teacher': self.teacher })
         self.student_enrollment = self.post_json_get_id("/students/{}/classes/".format(self.student), { 'student': self.student, 'school_class': self.school_class, 'semester': '2018-01-01' })
@@ -96,9 +98,9 @@ class MyTaskSet(TaskSet):
     def check_assignments(self):
         pass
 
-    # @task
-    # def enroll_in_class(self):
-    #     self.client.post("/students/{}/classes/".format(self.student), json={ 'school_class': self.school_class, 'semester': '2018-01-01' })
+    @task
+    def enroll_in_class(self):
+        self.client.post("/students/{}/classes/".format(self.new_comer), json={ 'school_class': self.school_class, 'semester': '2018-01-01' })
 
     @task
     def submits_answer(self):
