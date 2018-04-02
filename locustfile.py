@@ -3,26 +3,7 @@ import time
 import string
 import random
 from locust import HttpLocust, TaskSet, task
-
-def create_questions(how_many):
-    answers = create_answers('A', 'B', 'C', 'D')
-    return [create_question(answers) for x in range(how_many)]
-
-def create_question(answers):
-    return {
-        'description': 'question',
-        'correct_answer': 1,
-        'answers': answers
-    }
-
-def create_answers(*args):
-    lst = []
-    for i in range(len(args)):
-        description = args[i]
-        choice = i + 1
-        lst.append({ 'choice': choice, 'description': description })
-
-    return lst
+from factories import create_questions
 
 class OnStartSetupDataMixin:
     def post_json_get_id(self, url, payload):
@@ -50,6 +31,11 @@ class OnStartSetupDataMixin:
         self.setup_people()
         self.setup_classes()
         self.setup_quizzes_and_assignments()
+
+class BaseHttpLocust(HttpLocust):
+    host = os.getenv('TARGET_URL', "http://localhost:8000")
+    min_wait = 1000
+    max_wait = 10000
 
 class TeacherTaskSet(OnStartSetupDataMixin, TaskSet):
     @task
@@ -99,14 +85,8 @@ class StudentTaskSet(OnStartSetupDataMixin, TaskSet):
     def check_assignment_result(self):
         self.client.get("/assignments/{}/".format(str(self.assignment)))
 
-class StudentUser(HttpLocust):
-    host = os.getenv('TARGET_URL', "http://localhost:8000")
+class StudentUser(BaseHttpLocust):
     task_set = StudentTaskSet
-    min_wait = 1000
-    max_wait = 10000
 
-class TeacherUser(HttpLocust):
-    host = os.getenv('TARGET_URL', "http://localhost:8000")
+class TeacherUser(BaseHttpLocust):
     task_set = TeacherTaskSet
-    min_wait = 1000
-    max_wait = 10000
